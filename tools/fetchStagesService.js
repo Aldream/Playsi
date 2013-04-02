@@ -99,14 +99,14 @@ function ParseStage( dom, url ) {
 	arrayLien.pop();
 	var lienDossier = arrayLien.join("/")+"/";
 	
-	// On commence par recuperer le lien relatif vers le dossier contenant les docs de description. Pour cela on recupere le 1er lien qui vient et ne garde que le chemin vers le dossier en question:
-	var lienDocRegex =  new RegExp( 'Description</i> : <a href="(.*)"' );
-	arrayLien = lienDocRegex.exec(dom.innerHTML)[1].split('/');
-	arrayLien.pop();
-	lienDossier += arrayLien.join("/")+"/";
 	var jsonStages = {
-		dossierDescriptions : lienDossier,
-		stages : []};
+		dossierDescriptions : lienDossier, 	// Partie absolue du chemin vers les documents des champs "description"
+		stages : []				// Liste des stages extraits
+	};
+
+/* 	// La structure HTML est tellement immonde que les scrappers testés n'arrivent pas à récupérer correctement le DOM. Après avoir quand même tenté d'utiliser le pseudo-arbre généré, j'ai fini par laisser tomber pour passer à la méthode bourrine des regex ...
+	// Si un jour ils retouchent leur template, peut-être que le code ci-dessous pourra servir ...
+	
 	var titres = dom.getElementsByTagName('h4');
 	for (var i = titres.length; i--;) {
 		// Le DOM est immonde, donc la recuperation aussi:
@@ -136,6 +136,44 @@ function ParseStage( dom, url ) {
 		});
 		console.log(jsonStages.stages[jsonStages.stages.length-1]);
 	}
+*/
+	// La liste est affichee 4 fois dans un ordre different ... On recup donc que la 1ere version:
+	var body = dom.innerHTML;
+	var htmlStages = body.split('<font color="Red"><h2>Liste par ordre d\'arrivée de la proposition de stage</h2></font>')[1].split('<a href="#Menu">Retour au début</a>')[0];
+	
+	var re = new RegExp('<h4>([345-]+)IF ' 												// Annee
+			+ 'n° ([0-9]+)' 						// Numero
+			+ '[^:]+:[\s]*([^&]+)' 						// Entreprise
+                        // + (&nbsp;){3}
+			+ '([^(</)]+)</h4>'						// Lieu
+                        + '[^<]*<i>[A-z]+</i>[^:]+:(.*)' 				// Contact (peut etre vide mais champ quand meme present)
+                        + '[^<]*<i>[A-z]+</i>[^:]+:(.*)' 				// Sujet (peut etre vide mais champ quand meme present)
+                        + '(?:[^<]*<i>[A-z]+</i>[^:]+:[^(href=")]+href="([^"]*)[^\n]*)?'// Description (peut etre absent)
+                        + '[^<]*(?:<br>|<i>Notes</i>[^:]+:)((?:(?!<h4>)(?:.|\n))*)', 	// Notes (peut etre absent)
+                        'gm');
+						
+	var match;
+	while ((match = re.exec(htmlStages)) !== null) {
+		// Nettoyage des chaines obtenues :
+		var contact = match[5]? match[5].replace(/<br>/g,'\n').trim() : null;
+		var sujet = match[6]? match[6].replace(/<br>/g,'\n').trim() : null;
+		var notes = match[8]? match[8].replace(/<br>/g,'\n').trim() : null;
+		var description = match[7]? match[7] : null;
+		
+		// Construction du JSON :
+		jsonStages.stages.push({
+			annee: match[1],
+			num: match[2],
+			entreprise: match[3].trim(),
+			lieu: match[4].replace(/&nbsp;/g,'').trim(),
+			contact: contact? contact : null, // "string? string : null" permet de remplacer par null les chaines vides apres trimage.
+			sujet: sujet? sujet : null,
+			description: description,
+			notes: notes? notes : null
+		});
+		//console.log(jsonStages.stages[jsonStages.stages.length-1]);
+	}
+	console.log('Extraction finie. ' + jsonStages.stages.length + ' stages parsés.');
 	return jsonStages;
 }
 
