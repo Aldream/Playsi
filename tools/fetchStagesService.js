@@ -1,8 +1,8 @@
 var jsdom = require("jsdom");
 var http = require('http');
 
-var username = "TON_IDENTIFIANT_INSA";
-var password = "TON_MDP_INSA";
+var username = "LOGIN_INSA";
+var password = "MDP_INSA";
 
 var urlCas = 'https://login.insa-lyon.fr/'
 var urlStage = 'http://intranet-if.insa-lyon.fr/stages/Listestage.php'
@@ -24,6 +24,25 @@ http.createServer(function(request, response) {
 }).listen(serverPort);
 console.log('Server running at http://127.0.0.1:6789/');
 
+/*
+var http = require('http');
+function getPageISO_8859_1(host, url, cb){
+	var host = 'node.geht-ab.net';
+	var url = '/original.php'
+	var server = http.createClient(80, host);
+	var request = server.request('GET', url, { Host: host });
+	request.end();
+	request.on('response', function (response) {
+		response.setEncoding("binary");
+		var body = "";
+		response.on('data', function (data) { body += data; });
+		response.on('end', function () {
+			var iconv = new Iconv('UTF-8', 'ISO-8859-1');
+			cb(iconv.convert(body));
+		});
+	});
+}
+*/
 
 /**
  * URI-encode un objet
@@ -66,7 +85,7 @@ function CasAuthentification( username, password,  url, callback) {
 		function (errors, window) {
 			console.log('Retrieved CAS page:');
 			
-			console.log(window.document.body.innerHTML);
+			//console.log(window.document.body.innerHTML);
     	
 			// On recupère les valeurs manquantes pour notre formulaire : 
 			formulaire['lt'] = window.document.querySelector('input[name="lt"]').value;
@@ -139,7 +158,8 @@ function ParseStage( dom, url ) {
 */
 	// La liste est affichee 4 fois dans un ordre different ... On recup donc que la 1ere version:
 	var body = dom.innerHTML;
-	var htmlStages = body.split('<font color="Red"><h2>Liste par ordre d\'arrivée de la proposition de stage</h2></font>')[1].split('<a href="#Menu">Retour au début</a>')[0];
+	var htmlStages = body.split(new RegExp('<font color="Red"><h2>(?:(?!</h2>).)*</h2></font>'))[1].split('<a href="#Menu">(?:(?!</a>).)*</a>')[0];
+	console.log(htmlStages);
 	
 	var re = new RegExp('<h4>([345-]+)IF ' 												// Annee
 			+ 'n° ([0-9]+)' 						// Numero
@@ -171,7 +191,7 @@ function ParseStage( dom, url ) {
 			description: description,
 			notes: notes? notes : null
 		});
-		//console.log(jsonStages.stages[jsonStages.stages.length-1]);
+		console.log(jsonStages.stages[jsonStages.stages.length-1]);
 	}
 	console.log('Extraction finie. ' + jsonStages.stages.length + ' stages parsés.');
 	return jsonStages;
@@ -187,14 +207,14 @@ function RetrieveStages(callback) {
 	CasAuthentification(username, password,  urlCas, function(errors, window) {
 			console.log('Retrieved Stages page:');
 			
-			console.log(window.document.body.innerHTML);
+			//console.log(window.document.body.innerHTML);
 		// Une fois connecté, on recupere la page des stages :
 		jsdom.env(
 			urlStage,
 			function (errors, window) {
 			console.log('Retrieved Stages page:');
 			
-			console.log(window.document.body.innerHTML);
+			//console.log(window.document.body.innerHTML);
 				if (errors) {
 					callback(errors);
 				}
